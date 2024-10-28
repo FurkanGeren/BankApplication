@@ -45,6 +45,7 @@ public class UserRegistrationDTO {
     private String country;
 
     @NotBlank(message = "Şifre alanı boş olamaz.")
+    @Size(min = 6, max = 6, message = "Şifre tam olarak 6 karakter olmalıdır.")
     private String password;
 
 

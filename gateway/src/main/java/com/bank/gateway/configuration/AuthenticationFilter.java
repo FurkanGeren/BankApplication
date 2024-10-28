@@ -7,6 +7,7 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.http.HttpHeaders;
@@ -41,8 +42,24 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
+            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            if (authHeader == null || !authHeader.startsWith("SecureCodeBank ")) {
+                log.warn("Missing or invalid Authorization header.");
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
+            String token = authHeader.substring(15);
+
+            try {
+                jwtUtil.isInvalid(token); // Token'ı kontrol et
+            } catch (Exception e) {
+                log.warn("Invalid token: {}", e.getMessage());
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
+
             // Burada kimlik doğrulama ve rol kontrolü yapmalısınız
-            List<String> roles = getUserRolesFromHeader(exchange); // Kullanıcının rollerini alın
+            List<String> roles = getUserRolesFromHeader(token);
             String requiredRole = config.getRequiredRole();
 
             if (roles == null || !roles.contains(requiredRole)) {
@@ -50,15 +67,24 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                 return exchange.getResponse().setComplete();
             }
-
             log.info("Access granted for user with roles: {}", roles);
-            return chain.filter(exchange);
+            ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                    .header("X-User-UUID", getUserUUIDFromHeader(token))
+                    .build();
+
+                // Yeni isteği kullanarak filter chain devam ediyor
+            return chain.filter(exchange.mutate().request(modifiedRequest).build());
+
+            //return chain.filter(exchange);
         };
     }
 
-    private List<String> getUserRolesFromHeader(ServerWebExchange exchange) {
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        return jwtUtil.extractRoles(authHeader);
+    private List<String> getUserRolesFromHeader(String exchange) {
+        return jwtUtil.extractRoles(exchange);
+    }
+
+    private String getUserUUIDFromHeader(String exchange) {
+        return jwtUtil.extractUUID(exchange);
     }
 
     @Override

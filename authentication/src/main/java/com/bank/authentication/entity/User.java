@@ -4,6 +4,7 @@ package com.bank.authentication.entity;
 import com.bank.authentication.enumrated.AccountStatus;
 import com.bank.authentication.enumrated.Role;
 import jakarta.persistence.Entity;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
@@ -42,6 +43,9 @@ public class User implements UserDetails {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
+    @Column(name = "password", nullable = false)
+    private String customerPassword;
+
     @Column(name = "phone_number", nullable = false, unique = true)
     private String phoneNumber;
 
@@ -62,19 +66,19 @@ public class User implements UserDetails {
 
     @Column(name = "account_status", nullable = false)
     @Enumerated(EnumType.STRING)
-    private AccountStatus accountStatus = AccountStatus.ACTIVE;
+    private AccountStatus accountStatus;
 
-    @Column(name = "account_number", unique = true, nullable = false)
-    private String accountNumber;
+//    @Column(name = "account_number", unique = true, nullable = false)
+//    private String accountNumber;
 
     @Column(name = "iban", unique = true, nullable = false)
     private String iban;
 
     @Column(name = "balance", nullable = false)
-    private Double balance = 0.0;
+    private Double balance;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
@@ -85,6 +89,11 @@ public class User implements UserDetails {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
     }
 
     public void updateLastLogin() {
@@ -108,12 +117,12 @@ public class User implements UserDetails {
 
     @Override
     public String getPassword() {
-        return getPassword();
+        return getCustomerPassword();
     }
 
     @Override
     public String getUsername() {
-        return getNationalId();
+        return String.valueOf(getCustomerId());
     }
     @Override
     public boolean isAccountNonExpired() {

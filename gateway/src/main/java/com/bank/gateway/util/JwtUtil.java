@@ -51,4 +51,10 @@ public class JwtUtil {
         }
         return null;
     }
+
+    public String extractUUID(String exchange) {
+        Claims claims = getAllClaimsFromToken(exchange);
+        Object uuid = claims.getSubject();
+        return uuid.toString();
+    }
 }
